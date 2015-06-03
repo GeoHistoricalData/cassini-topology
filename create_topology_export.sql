@@ -37,7 +37,7 @@ BEGIN
   sql := 'CREATE TABLE ' || quote_ident(atopology) || '.version AS SELECT max(event_id) AS last_event, $1 AS tolerance, $2 AS tolerance_cities FROM audit.logged_actions';
   EXECUTE sql USING tolerance, tolerance_cities;
   -- copy the road data
-  sql := 'CREATE TABLE ' || quote_ident(atopology) || '.road AS SELECT * FROM public.france_cassini';
+  sql := 'CREATE TABLE ' || quote_ident(atopology) || '.road AS SELECT id, translate(type) AS road_type, nom AS road_name, geom, incertain AS uncertain, commentaire AS comments, bordee_arbres AS bordered FROM public.france_cassini';
   EXECUTE sql;
   -- the roads get copied twice: once for topology manipulations and once for the actual export (no modification)
   sql := 'CREATE TABLE ' || quote_ident(atopology) || '.france_cassini_roads AS SELECT id, translate(type) AS road_type, nom AS road_name, geom, incertain AS uncertain, commentaire AS comments, bordee_arbres AS bordered FROM public.france_cassini';
@@ -112,7 +112,7 @@ BEGIN
         FOR n IN EXECUTE sql USING city.geom, tolerance_cities LOOP
           SELECT ST_MakeLine(p, n.geom) INTO line;
           --RAISE INFO 'New edge with node %', n.node_id;
-          EXECUTE 'INSERT INTO ' || quote_ident(atopology) || '.road(type, incertain, geom, topo_geom) '
+          EXECUTE 'INSERT INTO ' || quote_ident(atopology) || '.road(road_type, uncertain, geom, topo_geom) '
             || 'VALUES (' || quote_literal('fictive') || ', true, $1, topology.toTopoGeom($1, '|| quote_literal(atopology) || ', $2, $3))'
             USING line, road_layer_id, 0.0;
         END LOOP;
@@ -206,7 +206,7 @@ BEGIN
 
   -- actually export the edges and the duplicates
   RAISE INFO 'EXPORTING EDGES AND DUPLICATES';
-  sql := 'SELECT id, translate(type) AS type, GetTopoGeomElements(topo_geom) AS topo FROM ' || quote_ident(atopology) || '.road';
+  sql := 'SELECT id, road_type, GetTopoGeomElements(topo_geom) AS topo FROM ' || quote_ident(atopology) || '.road';
   FOR r IN EXECUTE sql LOOP
     BEGIN
       sql := 'SELECT * FROM ' || quote_ident(atopology) || '.edge_data WHERE edge_id = $1';
@@ -216,8 +216,8 @@ BEGIN
           --  VALUES (t.edge_id,t.start_node,t.end_node,r.id,r.type,ST_Length(t.geom),t.geom);
           sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_edge(edge_id,start_node,end_node,road_id,road_type,length,geom) '
             || 'VALUES ($1, $2, $3, $4, $5, $6, $7)';
-          EXECUTE sql USING t.edge_id,t.start_node,t.end_node,r.id,r.type,ST_Length(t.geom),t.geom;
-         EXCEPTION
+          EXECUTE sql USING t.edge_id,t.start_node,t.end_node,r.id,r.road_type,ST_Length(t.geom),t.geom;
+          EXCEPTION
             WHEN OTHERS THEN
               --RAISE WARNING 'Duplicate % with % and % failed: %', r.id, s.topo, t.edge_id, SQLERRM;
               --INSERT INTO export.edge_duplicates(edge_id,start_node,end_node,geom)
@@ -237,7 +237,7 @@ BEGIN
     BEGIN
       --SELECT c.id, c.nom, c.type INTO s FROM export.france_cassini_cities AS c WHERE ST_Intersects(c.geom, n.geom) LIMIT 1;
       -- TODO: we should use STRICT here
-      sql := 'SELECT c.id, c.nom, c.type FROM ' || quote_ident(atopology) || '.france_cassini_cities AS c WHERE c.geom && $1 AND ST_Intersects(c.geom, $1) LIMIT 1';
+      sql := 'SELECT c.id, c.city_name, c.city_type FROM ' || quote_ident(atopology) || '.france_cassini_cities AS c WHERE c.geom && $1 AND ST_Intersects(c.geom, $1) LIMIT 1';
       EXECUTE sql INTO s USING n.geom;
       --INSERT INTO export.node(node_id,city_id,city_name,city_type,geom)
       --  VALUES (n.node_id,s.id,s.nom,translate(s.type),n.geom);
@@ -248,7 +248,7 @@ BEGIN
       ELSE
         sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_node(node_id,city_id,city_name,city_type,geom) '
           || 'VALUES ($1,$2,$3,$4,$5)';
-        EXECUTE sql USING n.node_id,s.id,s.nom,translate(s.type),n.geom;
+        EXECUTE sql USING n.node_id,s.id,s.city_name,s.city_type,n.geom;
       END IF;
       EXCEPTION WHEN OTHERS THEN RAISE WARNING 'Record % failed: %', n.node_id, SQLERRM;
     END;
