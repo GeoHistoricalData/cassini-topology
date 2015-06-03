@@ -255,8 +255,14 @@ BEGIN
   END LOOP;
 
   RAISE INFO 'END';
-  --sql := 'GRANT ALL ON ALL TABLES IN SCHEMA ' || quote_ident(atopology) || ' TO ghdb_admin';
-  --EXECUTE sql;
+  sql := 'ALTER SCHEMA ' || quote_ident(atopology) || ' OWNER TO ghdb_admin';
+  EXECUTE sql;
+  sql := 'GRANT USAGE ON SCHEMA ' || quote_ident(atopology) || ' TO GROUP ghdb_user';
+  EXECUTE sql;
+  sql := 'GRANT ALL ON ALL TABLES IN SCHEMA ' || quote_ident(atopology) || ' TO ghdb_admin';
+  EXECUTE sql;
+  sql := 'GRANT SELECT ON ALL TABLES IN SCHEMA ' || quote_ident(atopology) || ' TO ghdb_user';
+  EXECUTE sql;
 END
 $$
 LANGUAGE 'plpgsql';
