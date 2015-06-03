@@ -56,7 +56,7 @@ BEGIN
   -- create road topogeometry
   SELECT AddTopoGeometryColumn(atopology, atopology, 'road', 'topo_geom', 'LINESTRING') INTO road_layer_id;
   -- create faces table, topogemetry and geometry
-  --CREATE TABLE export_topology.faces(id SERIAL PRIMARY KEY);
+  -- sql := 'CREATE TABLE ' || quote_ident(atopology) || '.cassini_face(id SERIAL PRIMARY KEY)';
   --SELECT AddTopoGeometryColumn(atopology, 'export_topology', 'faces', 'topo_geom', 'POLYGON') INTO face_layer_id;
   --PERFORM AddGeometryColumn ('export_topology','faces','geom',2154,'POLYGON',2, false);
   -- add spatial indexing to faces
@@ -188,6 +188,13 @@ BEGIN
   -- with an index too
   --CREATE INDEX export_node_gist ON export.node USING gist(geom);
 
+  -- create the output faces
+  sql := 'CREATE TABLE ' || quote_ident(atopology) || '.cassini_face('
+    || 'face_id SERIAL NOT NULL,'
+    || 'geom geometry(Polygon,2154)'
+    || ')';
+  EXECUTE sql;
+
   -- DECLARE
   -- r record;
   -- s record;
@@ -244,13 +251,27 @@ BEGIN
       IF s IS NULL THEN
         sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_node(node_id,city_id,city_name,city_type,geom) '
           || 'VALUES ($1,$2,$3,$4,$5)';
-        EXECUTE sql USING n.node_id,NULL,NULL,NULL,n.geom;
+        EXECUTE sql USING n.node_id,NULL::integer,NULL::text,NULL::text,n.geom;
       ELSE
         sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_node(node_id,city_id,city_name,city_type,geom) '
           || 'VALUES ($1,$2,$3,$4,$5)';
         EXECUTE sql USING n.node_id,s.id,s.city_name,s.city_type,n.geom;
       END IF;
       EXCEPTION WHEN OTHERS THEN RAISE WARNING 'Record % failed: %', n.node_id, SQLERRM;
+    END;
+  END LOOP;
+
+  -- export the faces
+  RAISE INFO 'EXPORTING FACES';
+  sql := 'SELECT * FROM ' || quote_ident(atopology) || '.face';
+  FOR face IN EXECUTE sql LOOP
+    BEGIN
+      sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_face(face_id,geom) '
+        || 'VALUES ($1, $2)';
+      EXECUTE sql USING face.face_id, topology.ST_GetFaceGeometry(atopology,face.face_id);
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE WARNING 'Loading of record % failed: %', face.face_id, SQLERRM;
     END;
   END LOOP;
 
