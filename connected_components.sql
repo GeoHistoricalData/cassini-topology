@@ -18,7 +18,7 @@ BEGIN
     --RAISE NOTICE 'v = %', v;
     -- if v is not labeled as discovered:
     -- SELECT component INTO comp FROM export.node WHERE node_id = v;
-    EXECUTE format('SELECT component FROM %I.%I WHERE node_id =  = $1', atopology, anode) INTO comp USING v;
+    EXECUTE format('SELECT component FROM %I.%I WHERE node_id = $1', atopology, anode) INTO comp USING v;
     IF comp IS NULL THEN
       -- label v as discovered
       EXECUTE format('UPDATE %I.%I SET component = $1 WHERE node_id = $2', atopology, anode) USING component_id, v;
@@ -27,7 +27,7 @@ BEGIN
       --  (SELECT start_node AS new_id FROM export.edge WHERE end_node = v UNION SELECT end_node AS new_id FROM export.edge WHERE start_node = v) AS tmp
       --  WHERE NOT EXISTS (SELECT 1 FROM stack WHERE id = new_id);
       EXECUTE format('INSERT INTO stack SELECT distinct(new_id) FROM '
-        || '(SELECT start_node AS new_id FROM %I.%I WHERE end_node = $1 UNION SELECT end_node AS new_id FROM %I.%I WHERE start_node = $1) AS tmp'
+        || '(SELECT start_node AS new_id FROM %I.%I WHERE end_node = $1 UNION SELECT end_node AS new_id FROM %I.%I WHERE start_node = $1) AS tmp '
         || 'WHERE NOT EXISTS (SELECT 1 FROM stack WHERE id = new_id)',
         atopology, anedge, atopology, anedge) USING v;
       SELECT count(*) INTO v FROM stack;
