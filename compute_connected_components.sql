@@ -28,3 +28,4 @@ UPDATE france_cassini_routes_topo.connected_component c SET geom = (SELECT ST_Un
 
 CREATE INDEX connected_component_index ON france_cassini_routes_topo.connected_component USING gist(geom);
 CREATE INDEX connected_component_index_pk ON france_cassini_routes_topo.connected_component USING btree(component_id);
+GRANT SELECT ON TABLE france_cassini_routes_topo.connected_component TO ghdb_user;
