@@ -290,6 +290,8 @@ LANGUAGE 'plpgsql';
 
 CREATE OR REPLACE FUNCTION create_road_topology_cassini() RETURNS VOID AS
 $$
-  SELECT create_road_topology('france_cassini_routes_topo', 10.0, 20.0);
+  SELECT create_road_topology('france_cassini_routes_topo', 20.0, 20.0);
 $$
 LANGUAGE 'sql' VOLATILE;
+
+SELECT create_road_topology_cassini();
