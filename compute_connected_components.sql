@@ -1,3 +1,5 @@
+﻿SELECT create_road_topology_cassini(); 
+
 -- drop component column
 --ALTER TABLE france_cassini_routes_topo.cassini_node DROP COLUMN component;
 -- add new component column
@@ -21,7 +23,7 @@ CREATE TABLE france_cassini_routes_topo.connected_component AS
   FROM france_cassini_routes_topo.cassini_edge
   GROUP BY component;
 
-SELECT AddGeometryColumn ('france_cassini_routes_topo','connected_component','geom',2154,'MULTILINESTRING',2);
+SELECT AddGeometryColumn ('france_cassini_routes_topo','connected_component','geom',2154,'GEOMETRY',2);
 UPDATE france_cassini_routes_topo.connected_component c SET geom = (SELECT ST_Union(geom) FROM france_cassini_routes_topo.cassini_edge e WHERE e.component = c.component_id);
 
 CREATE INDEX connected_component_index ON france_cassini_routes_topo.connected_component USING gist(geom);
