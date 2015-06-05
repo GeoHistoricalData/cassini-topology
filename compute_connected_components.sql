@@ -17,10 +17,12 @@ UPDATE france_cassini_routes_topo.cassini_edge e SET component = (SELECT compone
 CREATE TABLE france_cassini_routes_topo.connected_component AS
   SELECT distinct(component) AS component_id,
   count(*) AS nb_edge,
-  sum(ST_Length(geom)) AS length,
-  ST_Union(geom) AS geom
+  sum(ST_Length(geom)) AS length
   FROM france_cassini_routes_topo.cassini_edge
   GROUP BY component;
+
+SELECT AddGeometryColumn ('france_cassini_routes_topo','connected_component','geom',2154,'MULTILINESTRING',2);
+UPDATE france_cassini_routes_topo.connected_component c SET geom = (SELECT ST_Union(geom) FROM france_cassini_routes_topo.cassini_edge e WHERE e.component = c.component_id);
 
 CREATE INDEX connected_component_index ON france_cassini_routes_topo.connected_component USING gist(geom);
 CREATE INDEX connected_component_index_pk ON france_cassini_routes_topo.connected_component USING btree(component_id);
