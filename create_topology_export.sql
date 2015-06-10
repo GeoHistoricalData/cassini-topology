@@ -98,9 +98,9 @@ BEGIN
   sql := 'ALTER TABLE ' || quote_ident(atopology) || '.road ALTER COLUMN id SET DEFAULT nextval(' || quote_literal(atopology || '.road_id_seq') || '::regclass)';
   EXECUTE sql;
 
-  -- create nodes and edges inside the cities
+  -- create nodes and edges inside the cities (we now only process cities that are not domains)
   RAISE INFO 'CREATING CITY NODES';
-  sql := 'SELECT * FROM ' || quote_ident(atopology) || '.france_cassini_cities';
+  sql := 'SELECT * FROM ' || quote_ident(atopology) || '.france_cassini_cities WHERE NOT city_type = ' || quote_literal('domain');
   FOR city IN EXECUTE sql LOOP
     BEGIN
       sql := 'SELECT count(*) FROM ' || quote_ident(atopology) || '.edge_data WHERE geom && $1 AND ST_Within(geom, $1)';
@@ -251,7 +251,7 @@ BEGIN
       IF s IS NULL THEN
         sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_node(node_id,city_id,city_name,city_type,geom) '
           || 'VALUES ($1,$2,$3,$4,$5)';
-        EXECUTE sql USING n.node_id,NULL::integer,NULL::text,NULL::text,n.geom;
+        EXECUTE sql USING n.node_id,0,NULL::text,NULL::text,n.geom;
       ELSE
         sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_node(node_id,city_id,city_name,city_type,geom) '
           || 'VALUES ($1,$2,$3,$4,$5)';
@@ -263,7 +263,7 @@ BEGIN
 
   -- export the faces
   RAISE INFO 'EXPORTING FACES';
-  sql := 'SELECT * FROM ' || quote_ident(atopology) || '.face';
+  sql := 'SELECT * FROM ' || quote_ident(atopology) || '.face WHERE face_id !=0';
   FOR face IN EXECUTE sql LOOP
     BEGIN
       sql := 'INSERT INTO ' || quote_ident(atopology) || '.cassini_face(face_id,geom) '
@@ -293,5 +293,3 @@ $$
   SELECT create_road_topology('france_cassini_routes_topo', 20.0, 20.0);
 $$
 LANGUAGE 'sql' VOLATILE;
-
-SELECT create_road_topology_cassini();
