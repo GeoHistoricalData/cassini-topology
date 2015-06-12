@@ -61,3 +61,11 @@ UPDATE france_cassini_routes_topo.connected_component c SET component_type = 'fe
 UPDATE france_cassini_routes_topo.connected_component c SET component_type = 'gap' WHERE gap > 0.75;
 UPDATE france_cassini_routes_topo.connected_component c SET component_type = 'bridge' WHERE bridge > 0.75;
 UPDATE france_cassini_routes_topo.connected_component c SET component_type = 'fictive' WHERE fictive > 0.75;
+
+--DROP TABLE france_cassini_routes_topo.connected_component_distance;
+CREATE TABLE france_cassini_routes_topo.connected_component_distance AS
+  SELECT ST_Distance(n1.geom, n2.geom) AS distance, n1.component_id AS component_id1, n2.component_id AS component_id2, ST_ShortestLine(n1.geom, n2.geom) AS geom
+	FROM france_cassini_routes_topo.connected_component n1
+		LEFT JOIN france_cassini_routes_topo.connected_component n2
+		ON ST_DWithin(n1.geom, n2.geom, 200)
+	WHERE n1.component_id < n2.component_id AND n1.component_id <> n2.component_id;
